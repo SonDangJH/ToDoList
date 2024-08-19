@@ -1,16 +1,21 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import EditNote from "../components/EditNote";
 import SearchBar from "../components/SearchBar";
 import ToDoItem from "../components/ToDoItem";
 import toast, { Toaster } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
+import { saveNewTodo, editTodo } from '../reducer';
+import { Pagination } from "../components/Pagination";
+import { fetchTodosByPage } from '../reducer';
 
 export default function ToDoListPage() {
+  const dispatch = useDispatch()
   const [mode, setMode] = useState("Add");
-  const [searchKey, setSearchKey] = useState("");
-  const [notes, setNotes] = useState([]);
-  const [backUpNotes, setBackUpNotes] = useState([]);
   const [currentNote, setCurrentNote] = useState();
   const [noteBoardContent, setNoteBoardContent] = useState("");
+  const todos = useSelector(state => state);
+
 
   function actionNote() {
     if (noteBoardContent === "") {
@@ -19,26 +24,10 @@ export default function ToDoListPage() {
     }
     else {
       if (mode === "Add") {
-        setNotes((prev) => [
-          ...prev,
-          {
-            id: new Date().toTimeString(),
-            content: noteBoardContent,
-            date: new Date(),
-          },
-        ]);
+        dispatch(saveNewTodo(noteBoardContent));
       } else {
         if (!currentNote.id) return;
-        const newNoteList = notes.map((note) =>
-          note.id !== currentNote.id
-            ? note
-            : {
-                ...note,
-                content: noteBoardContent,
-                date: new Date(),
-              }
-        );
-        setNotes(newNoteList);
+        dispatch(editTodo(noteBoardContent, currentNote.id))
       }
       setNoteBoardContent("");
       setCurrentNote();
@@ -47,37 +36,19 @@ export default function ToDoListPage() {
   }
 
   function deleteNote(noteId) {
-    const newNoteList = notes.filter((note) => note.id !== noteId);
-    setNotes(newNoteList);
+    dispatch({type: 'todos/todoDeleted', payload: noteId});
+    setMode("Add");
+    setCurrentNote();
+    setNoteBoardContent("");
   }
 
-  function searchNote(searchWord) {
-    const newNoteList = notes.filter((note) =>
-      note.content.includes(searchWord)
-    );
-    setBackUpNotes(newNoteList);
-  }
-
-  function sortNote(type) {
-    const sortFn = type === 'ASC' ? (a, b) => a.date.getTime() - b.date.getTime() : (a, b) => b.date.getTime() - a.date.getTime();
-    setBackUpNotes(prev => [...prev.sort(sortFn)]);
-  }
-
-  useEffect(() => {
-    searchNote(searchKey);
-  }, [searchKey]);
-
-  useEffect(() => {
-    setBackUpNotes(notes);
-  }, [notes]);
 
   return (
     <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 ">
       <Toaster/>
       <div className="flex flex-col gap-6">
-        <SearchBar setSearchKey={setSearchKey} sortNote={sortNote} />
         <div className="overflow-y-scroll h-[500px] flex flex-col gap-3 px-3">
-          {backUpNotes.map((noteDetail) => (
+          {todos.todos.map((noteDetail) => (
             <ToDoItem
               note={noteDetail}
               key={noteDetail.id}
@@ -88,12 +59,11 @@ export default function ToDoListPage() {
             />
           ))}
         </div>
+        <Pagination/>
       </div>
       <EditNote
         mode={mode}
         actionNote={actionNote}
-        setMode={setMode}
-        currentNote={currentNote}
         noteBoardContent={noteBoardContent}
         setNoteBoardContent={setNoteBoardContent}
       />
